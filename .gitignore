@@ -1,0 +1,21 @@
+# Backend exclusions
+backend/.venv/
+backend/__pycache__/
+backend/.env
+backend/credentials.json
+backend/*.pyc
+
+# Frontend exclusions
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/.env.development
+
+# Editor & System exclusions
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
