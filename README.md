@@ -5,9 +5,9 @@ This is a complete enterprise-level Task Management and Employee Monitoring web 
 Instead of a traditional SQL database, this system is uniquely configured to use **Google Sheets** as its primary database.
 
 ## 🛠 Tech Stack
-- **Frontend**: React.js (Vite), Tailwind CSS, Framer Motion, Socket.IO Client, Axios
-- **Backend**: Python, FastAPI, WebSockets, JWT Authentication, Passlib (Bcrypt)
-- **Database**: Google Sheets (via `gspread`)
+- **Frontend**: React.js (Vite), Tailwind CSS, Framer Motion, Lucide Icons, Recharts
+- **Backend (Serverless)**: Google Apps Script Web App (direct Google Sheets connection)
+- **Database**: Google Sheets (Users, Tasks, and Attendance sheets)
 
 ---
 
