@@ -197,6 +197,12 @@ const Dashboard = () => {
   }, [activeTab, user]);
 
   const handleStatusChange = async (taskId, newStatus) => {
+    // ✅ LOCK: Once Completed, status can never be changed back
+    const currentTask = tasks.find(t => t.id === taskId);
+    if (currentTask?.status === 'Completed') {
+      showNotification('This task is already completed and cannot be changed.', 'error');
+      return;
+    }
     try {
       // Optimistic UI update
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
@@ -411,18 +417,24 @@ const Dashboard = () => {
                                   </button>
                                 </>
                               ) : task.status === 'Completed' ? (
-                                <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-green-50 text-green-700 border-green-200">
+                                // 🔒 LOCKED — Completed is final
+                                <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-green-50 text-green-700 border-green-200 flex items-center gap-1.5">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                   Completed
                                 </span>
                               ) : (
-                                <select 
-                                  value={task.status} 
-                                  onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                                  className="border rounded-lg px-3 py-1.5 text-sm font-medium outline-none cursor-pointer focus:border-primary focus:ring-2 focus:ring-primary/20 bg-blue-50 text-blue-700 border-blue-200"
-                                >
-                                  <option value="In Progress">In Progress</option>
-                                  <option value="Completed">Completed</option>
-                                </select>
+                                // In Progress — admin can only move forward to Completed
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-blue-50 text-blue-700 border-blue-200">
+                                    In Progress
+                                  </span>
+                                  <button
+                                    onClick={() => handleStatusChange(task.id, 'Completed')}
+                                    className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+                                  >
+                                    Mark Complete
+                                  </button>
+                                </div>
                               )}
                             </div>
                           ) : (
@@ -432,18 +444,24 @@ const Dashboard = () => {
                                 Pending Approval
                               </span>
                             ) : task.status === 'Completed' ? (
-                              <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-green-50 text-green-700 border-green-200">
+                              // 🔒 LOCKED — Completed is final for employee too
+                              <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-green-50 text-green-700 border-green-200 flex items-center gap-1.5">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                 Completed
                               </span>
                             ) : (
-                              <select 
-                                value={task.status} 
-                                onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                                className="border rounded-lg px-3 py-1.5 text-sm font-medium outline-none cursor-pointer focus:border-primary focus:ring-2 focus:ring-primary/20 bg-blue-50 text-blue-700 border-blue-200"
-                              >
-                                <option value="In Progress">In Progress</option>
-                                <option value="Completed">Completed</option>
-                              </select>
+                              // In Progress — employee can only move forward to Completed
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-blue-50 text-blue-700 border-blue-200">
+                                  In Progress
+                                </span>
+                                <button
+                                  onClick={() => handleStatusChange(task.id, 'Completed')}
+                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+                                >
+                                  Mark as Done
+                                </button>
+                              </div>
                             )
                           )}
                         </td>
