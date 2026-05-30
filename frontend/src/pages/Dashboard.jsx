@@ -1,9 +1,19 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { api } from '../services/api';
+import {
+  fetchUsers,
+  addEmployee,
+  updateUserRole,
+  fetchTasks as apiFetchTasks,
+  addTask as apiAddTask,
+  updateTaskStatus as apiUpdateTaskStatus,
+  fetchAttendance as apiFetchAttendance,
+  saveAttendance as apiSaveAttendance
+} from '../services/api';
 import { LayoutDashboard, CheckSquare, Users, Clock, Settings, LogOut, MoreVertical, Plus, Search, Calendar, Activity, ChevronRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TableSkeleton, TeamSkeleton, AttendanceSkeleton } from '../components/SkeletonLoader';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const { logout, user } = useContext(AuthContext);
@@ -15,9 +25,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
   if (user?.role === 'admin') {
     navItems.push(
-      { id: 'team', icon: <Users size={20} />, label: 'Team Activity' },
-      { id: 'attendance', icon: <Clock size={20} />, label: 'Attendance' },
-      { id: 'settings', icon: <Settings size={20} />, label: 'Settings' }
+      { id: 'team', icon: <Users size={20} />, label: 'Team Activity' }
     );
   }
 
@@ -40,10 +48,15 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         ))}
       </nav>
 
-      <button onClick={logout} className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-all mt-auto group">
-        <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
-        <span className="font-medium">Logout</span>
-      </button>
+      <div className="border-t border-slate-100 pt-4 mt-auto">
+        <button 
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all font-medium"
+        >
+          <LogOut size={20} />
+          <span>Logout</span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -104,11 +117,19 @@ const Dashboard = () => {
   const [addTaskLoading, setAddTaskLoading] = useState(false);
   const [addTaskError, setAddTaskError] = useState('');
 
+  // Attendance Marking Form State
+  const [attDate, setAttDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attStatus, setAttStatus] = useState('Present');
+  const [attCheckIn, setAttCheckIn] = useState('09:00 AM');
+  const [attCheckOut, setAttCheckOut] = useState('06:00 PM');
+  const [attNotes, setAttNotes] = useState('');
+  const [saveAttLoading, setSaveAttLoading] = useState(false);
+
   const fetchTasks = async () => {
     try {
       setLoadingTasks(true);
-      const res = await api.get('/tasks/');
-      setTasks(res.data);
+      const data = await apiFetchTasks(user?.id, user?.role);
+      setTasks(data || []);
     } catch (err) {
       console.error("Error fetching tasks:", err);
     } finally {
@@ -119,8 +140,8 @@ const Dashboard = () => {
   const fetchTeam = async () => {
     try {
       setLoadingTeam(true);
-      const res = await api.get('/users/');
-      setTeam(res.data);
+      const data = await fetchUsers();
+      setTeam(data || []);
     } catch (err) {
       console.error("Error fetching team:", err);
     } finally {
@@ -140,8 +161,8 @@ const Dashboard = () => {
     const fetchMyAttendance = async () => {
       if (!user) return;
       try {
-        const response = await api.get(`/users/${user.id}/attendance`);
-        setMyAttendance(response.data);
+        const data = await apiFetchAttendance(user.id);
+        setMyAttendance(data || []);
       } catch (err) {
         console.error("Error fetching my attendance for stats:", err);
       }
@@ -153,8 +174,8 @@ const Dashboard = () => {
     if (!userId) return;
     setLoadingAttendance(true);
     try {
-      const response = await api.get(`/users/${userId}/attendance`);
-      setAttendanceLogs(response.data);
+      const data = await apiFetchAttendance(userId);
+      setAttendanceLogs(data || []);
     } catch (err) {
       console.error("Error fetching attendance:", err);
       showNotification("Failed to load attendance records.", "error");
@@ -169,9 +190,8 @@ const Dashboard = () => {
     }
   }, [activeTab, selectedMemberId]);
 
-  // Enforce access control router guard for non-admins
   useEffect(() => {
-    if (user && user.role !== 'admin' && ['team', 'attendance', 'settings'].includes(activeTab)) {
+    if (user && user.role !== 'admin' && ['team', 'attendance'].includes(activeTab)) {
       setActiveTab('dashboard');
     }
   }, [activeTab, user]);
@@ -180,7 +200,7 @@ const Dashboard = () => {
     try {
       // Optimistic UI update
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-      await api.put(`/tasks/${taskId}/status`, { status: newStatus });
+      await apiUpdateTaskStatus(taskId, newStatus);
       showNotification(`Task status updated to "${newStatus}"!`);
     } catch (err) {
       console.error("Error updating task status:", err);
@@ -192,7 +212,7 @@ const Dashboard = () => {
   const handleRoleChange = async (userId, newRole) => {
     try {
       setTeam(prev => prev.map(u => String(u.id) === String(userId) ? { ...u, role: newRole } : u));
-      await api.put(`/users/${userId}/role`, { role: newRole });
+      await updateUserRole(userId, newRole);
       showNotification("Employee role updated successfully!");
     } catch (err) {
       console.error("Error updating user role:", err);
@@ -206,7 +226,7 @@ const Dashboard = () => {
     setAddEmpLoading(true);
     setAddEmpError('');
     try {
-      await api.post('/users/', {
+      await addEmployee({
         full_name: empName,
         email: empEmail,
         password: empPassword,
@@ -220,17 +240,7 @@ const Dashboard = () => {
       setEmpRole('employee');
       fetchTeam();
     } catch (err) {
-      let errorMsg = "Failed to add employee";
-      if (err.response?.data?.detail) {
-        if (Array.isArray(err.response.data.detail)) {
-          errorMsg = err.response.data.detail.map(d => `${d.loc.slice(1).join('.')}: ${d.msg}`).join(", ");
-        } else if (typeof err.response.data.detail === 'string') {
-          errorMsg = err.response.data.detail;
-        } else {
-          errorMsg = JSON.stringify(err.response.data.detail);
-        }
-      }
-      setAddEmpError(errorMsg);
+      setAddEmpError(err.message || "Failed to add employee");
     } finally {
       setAddEmpLoading(false);
     }
@@ -245,7 +255,7 @@ const Dashboard = () => {
     setAddTaskLoading(true);
     setAddTaskError('');
     try {
-      await api.post('/tasks/', {
+      await apiAddTask({
         title: taskTitle,
         description: taskDesc,
         priority: taskPriority,
@@ -262,19 +272,36 @@ const Dashboard = () => {
       setTaskAssigneeId('');
       fetchTasks();
     } catch (err) {
-      let errorMsg = "Failed to create task";
-      if (err.response?.data?.detail) {
-        if (Array.isArray(err.response.data.detail)) {
-          errorMsg = err.response.data.detail.map(d => `${d.loc.slice(1).join('.')}: ${d.msg}`).join(", ");
-        } else if (typeof err.response.data.detail === 'string') {
-          errorMsg = err.response.data.detail;
-        } else {
-          errorMsg = JSON.stringify(err.response.data.detail);
-        }
-      }
-      setAddTaskError(errorMsg);
+      setAddTaskError(err.message || "Failed to create task");
     } finally {
       setAddTaskLoading(false);
+    }
+  };
+
+  const handleSaveAttendance = async (e) => {
+    e.preventDefault();
+    if (!selectedMemberId) {
+      showNotification("Please select an employee first", "error");
+      return;
+    }
+    setSaveAttLoading(true);
+    try {
+      await apiSaveAttendance({
+        user_id: selectedMemberId,
+        date: attDate,
+        status: attStatus,
+        check_in: attStatus === 'Absent' || attStatus === 'On Leave' ? '' : attCheckIn,
+        check_out: attStatus === 'Absent' || attStatus === 'On Leave' ? '' : attCheckOut,
+        notes: attNotes
+      });
+      showNotification("Attendance recorded successfully!");
+      setAttNotes('');
+      fetchAttendance(selectedMemberId);
+    } catch (err) {
+      console.error("Error saving attendance:", err);
+      showNotification("Failed to record attendance", "error");
+    } finally {
+      setSaveAttLoading(false);
     }
   };
 
@@ -284,6 +311,36 @@ const Dashboard = () => {
   };
 
   const activeEmployeesCount = team.filter(u => u.status === 'online' || u.status === 'active').length;
+
+  const getMonthlyChartData = () => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyCounts = months.map(m => ({
+      month: m,
+      Total: 0,
+      Completed: 0,
+      Pending: 0
+    }));
+
+    tasks.forEach(task => {
+      if (!task.created_at) return;
+      try {
+        const date = new Date(task.created_at);
+        const monthIndex = date.getMonth();
+        if (monthIndex >= 0 && monthIndex < 12) {
+          monthlyCounts[monthIndex].Total += 1;
+          if (task.status === 'Completed') {
+            monthlyCounts[monthIndex].Completed += 1;
+          } else if (task.status === 'Pending') {
+            monthlyCounts[monthIndex].Pending += 1;
+          }
+        }
+      } catch (err) {
+        console.error("Error parsing date for chart:", err);
+      }
+    });
+
+    return monthlyCounts;
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -431,7 +488,6 @@ const Dashboard = () => {
                       <th className="p-4 font-semibold">Current Status</th>
                       <th className="p-4 font-semibold">Role</th>
                       <th className="p-4 font-semibold">Last Active</th>
-                      <th className="p-4 font-semibold text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -441,7 +497,7 @@ const Dashboard = () => {
                           <div className="flex items-center gap-3">
                             <div className="relative">
                               <img src={`https://ui-avatars.com/api/?name=${member.full_name}&background=random&size=40`} className="rounded-full shadow-sm border border-slate-200" alt="" />
-                              <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${member.status === 'online' || member.status === 'active' ? 'bg-green-500' : member.status === 'idle' ? 'bg-yellow-500' : member.status === 'away' ? 'bg-orange-500' : 'bg-slate-400'}`}></div>
+                              <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : 'bg-slate-400'}`}></div>
                             </div>
                             <div>
                               <p className="font-semibold text-sm text-slate-800">{member.full_name}</p>
@@ -451,8 +507,8 @@ const Dashboard = () => {
                         </td>
                         <td className="p-4">
                           <span className="capitalize text-sm font-medium flex items-center gap-2 text-slate-700">
-                            {member.status === 'online' || member.status === 'active' ? <Activity size={16} className="text-green-500 animate-pulse" /> : <Clock size={16} className="text-slate-400" />}
-                            {member.status}
+                            {member.status === 'online' ? <Activity size={16} className="text-green-500 animate-pulse" /> : <Clock size={16} className="text-slate-400" />}
+                            {member.status === 'online' ? 'online' : 'offline'}
                           </span>
                         </td>
                         <td className="p-4 text-sm text-slate-600 capitalize">
@@ -472,17 +528,6 @@ const Dashboard = () => {
                         <td className="p-4 text-sm text-slate-500">
                           {member.last_active ? new Date(member.last_active).toLocaleString() : 'Never'}
                         </td>
-                        <td className="p-4 text-right">
-                          <button 
-                            onClick={() => {
-                              setSelectedMemberId(member.id);
-                              setActiveTab('attendance');
-                            }}
-                            className="text-primary hover:text-indigo-700 transition-colors text-sm font-semibold"
-                          >
-                            View Logs
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -493,82 +538,187 @@ const Dashboard = () => {
         );
 
       case 'attendance':
+        const selectedEmployee = team.find(member => String(member.id) === String(selectedMemberId));
         return (
-          <div className="glass-panel p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-slate-800">Attendance & Hours</h3>
-                <p className="text-sm text-slate-500 font-medium mt-0.5">
-                  {user?.role === 'admin' ? 'View employee-wise daily working details' : 'Your personal daily work log'}
-                </p>
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="glass-panel p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">Daily Attendance Management</h3>
+                  <p className="text-sm text-slate-500 font-medium mt-0.5">
+                    {user?.role === 'admin' 
+                      ? 'Mark and manage team attendance logs' 
+                      : 'View your personal daily attendance logs'}
+                  </p>
+                </div>
+                {user?.role === 'admin' && (
+                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-sm">
+                    <span className="text-sm font-semibold text-slate-500">Selected Employee:</span>
+                    <select 
+                      value={selectedMemberId} 
+                      onChange={(e) => setSelectedMemberId(e.target.value)}
+                      className="bg-transparent border-0 font-bold text-sm text-slate-800 outline-none cursor-pointer focus:ring-0"
+                    >
+                      <option value="">Select Employee</option>
+                      {team.map(member => (
+                        <option key={member.id} value={member.id}>{member.full_name} ({member.role})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Mark Attendance Form (Admin Only) */}
               {user?.role === 'admin' && (
-                <div className="flex items-center gap-3 bg-white/60 border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-                  <span className="text-sm font-semibold text-slate-500">Employee:</span>
-                  <select 
-                    value={selectedMemberId} 
-                    onChange={(e) => setSelectedMemberId(e.target.value)}
-                    className="bg-transparent border-0 font-bold text-sm text-slate-800 outline-none cursor-pointer focus:ring-0"
-                  >
-                    {team.map(member => (
-                      <option key={member.id} value={member.id}>{member.full_name} ({member.role})</option>
-                    ))}
-                  </select>
+                <div className="lg:col-span-1 glass-panel p-6 flex flex-col">
+                  <h4 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Calendar size={20} className="text-primary" />
+                    Mark Attendance
+                  </h4>
+                  {selectedEmployee ? (
+                    <form onSubmit={handleSaveAttendance} className="space-y-4 flex-1">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 mb-1">Select Date</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={attDate} 
+                          onChange={(e) => setAttDate(e.target.value)} 
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 mb-1">Attendance Status</label>
+                        <select 
+                          value={attStatus} 
+                          onChange={(e) => setAttStatus(e.target.value)} 
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-800 cursor-pointer"
+                        >
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Half Day">Half Day</option>
+                          <option value="On Leave">On Leave</option>
+                        </select>
+                      </div>
+
+                      {(attStatus === 'Present' || attStatus === 'Half Day') && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-600 mb-1">Check-In Time</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. 09:00 AM" 
+                              value={attCheckIn} 
+                              onChange={(e) => setAttCheckIn(e.target.value)} 
+                              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-800"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-600 mb-1">Check-Out Time</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. 06:00 PM" 
+                              value={attCheckOut} 
+                              onChange={(e) => setAttCheckOut(e.target.value)} 
+                              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-800"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 mb-1">Notes / Remarks</label>
+                        <textarea 
+                          placeholder="Add any notes..." 
+                          value={attNotes} 
+                          onChange={(e) => setAttNotes(e.target.value)} 
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-800 min-h-[80px]"
+                        />
+                      </div>
+
+                      <button 
+                        type="submit" 
+                        disabled={saveAttLoading} 
+                        className="w-full py-3 bg-primary hover:bg-indigo-600 text-white font-bold rounded-lg mt-6 shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {saveAttLoading ? <Loader2 size={16} className="animate-spin" /> : "Save Attendance"}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-center p-6 text-slate-400 font-medium">
+                      Select an employee to mark attendance
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-            
-            {loadingAttendance ? (
-              <AttendanceSkeleton />
-            ) : (
-              <div className="space-y-4">
-                {attendanceLogs.map((log) => (
-                  <div key={log.day} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-white/60 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
-                    <div className="flex items-center gap-4 mb-3 md:mb-0">
-                      <div className="w-14 h-14 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center text-primary shadow-sm">
-                        <span className="text-xs font-bold uppercase tracking-wider">May</span>
-                        <span className="text-xl font-black leading-none">{18 - log.day}</span>
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800">Total Hours Logged: {log.total_hours}</p>
-                        <p className="text-sm text-slate-500 font-medium">Check In: {log.check_in} • Check Out: {log.check_out}</p>
-                      </div>
-                    </div>
-                    <div className="w-full md:w-1/3">
-                      <div className="flex justify-between text-sm mb-1.5 font-medium">
-                        <span className="text-slate-600">Productivity Hours</span>
-                        <span className="text-secondary">{log.productivity}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200/50">
-                        <div className="bg-secondary h-2.5 rounded-full" style={{ width: `${log.productivity}%` }}></div>
-                      </div>
-                    </div>
+
+              {/* Attendance History */}
+              <div className={`glass-panel p-6 ${user?.role === 'admin' ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                <h4 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                  <Clock size={20} className="text-primary" />
+                  {user?.role === 'admin' 
+                    ? `Attendance History for ${selectedEmployee?.full_name || 'Selected Employee'}`
+                    : 'Your Attendance History'}
+                </h4>
+
+                {loadingAttendance ? (
+                  <AttendanceSkeleton />
+                ) : attendanceLogs.length === 0 ? (
+                  <div className="text-center py-20 text-slate-400 font-medium">
+                    No attendance records found for this employee.
                   </div>
-                ))}
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                          <th className="p-4 font-semibold">Date</th>
+                          <th className="p-4 font-semibold">Status</th>
+                          <th className="p-4 font-semibold">Check In</th>
+                          <th className="p-4 font-semibold">Check Out</th>
+                          <th className="p-4 font-semibold">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attendanceLogs.map((log, i) => (
+                          <motion.tr 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            key={log.id || i} 
+                            className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors"
+                          >
+                            <td className="p-4 font-semibold text-slate-800 text-sm">{log.date}</td>
+                            <td className="p-4">
+                              <span className={`text-xs px-2.5 py-1 rounded-md font-medium border whitespace-nowrap ${
+                                log.status === 'Present' ? 'bg-green-50 text-green-600 border-green-200' :
+                                log.status === 'Absent' ? 'bg-red-50 text-red-600 border-red-200' :
+                                log.status === 'Half Day' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                                'bg-blue-50 text-blue-600 border-blue-200'
+                              }`}>
+                                {log.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-sm text-slate-600">{log.check_in || '—'}</td>
+                            <td className="p-4 text-sm text-slate-600">{log.check_out || '—'}</td>
+                            <td className="p-4 text-sm text-slate-500 max-w-[200px] truncate" title={log.notes}>
+                              {log.notes || '—'}
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         );
 
       default:
-        // Calculate dynamic total hours from myAttendance
-        const totalHours = myAttendance.reduce((acc, log) => {
-          const match = log.total_hours.match(/(\d+)h\s*(\d+)m/);
-          if (match) {
-            const h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            return acc + h + m / 60;
-          }
-          return acc;
-        }, 0);
-        const displayHours = totalHours > 0 ? `${totalHours.toFixed(1)}h` : "0h";
-
-        // Calculate dynamic average productivity from myAttendance
-        const avgProductivity = myAttendance.length > 0
-          ? Math.round(myAttendance.reduce((acc, log) => acc + log.productivity, 0) / myAttendance.length)
-          : 0;
-        const displayProductivity = avgProductivity > 0 ? `${avgProductivity}%` : "0%";
-
         // Generate dynamic alerts based on live data
         const dynamicAlerts = [];
         tasks.slice(0, 2).forEach(task => {
@@ -579,7 +729,7 @@ const Dashboard = () => {
             type: task.status === 'Completed' ? 'success' : 'info'
           });
         });
-        team.filter(u => u.status === 'online' || u.status === 'active').slice(0, 2).forEach(member => {
+        team.filter(u => u.status === 'online').slice(0, 2).forEach(member => {
           dynamicAlerts.push({
             text: `${member.full_name} is currently ${member.status}`,
             time: 'Now',
@@ -588,62 +738,146 @@ const Dashboard = () => {
         });
         if (dynamicAlerts.length === 0) {
           dynamicAlerts.push({
-            text: 'System online & logging active',
+            text: 'System online & tasks active',
             time: 'Always',
             type: 'success'
           });
         }
 
+        const isAdmin = user?.role === 'admin';
+
         return (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <StatCard title="Total Tasks" value={tasks.length} icon={<CheckSquare />} trend={`${tasks.filter(t => t.status === 'Completed').length} done`} isPositive={true} />
-              <StatCard title="Active Team" value={`${activeEmployeesCount}/${team.length}`} icon={<Users />} trend="Online" isPositive={true} />
-              <StatCard title="Hours Logged" value={displayHours} icon={<Clock />} trend="This week" isPositive={true} />
-              <StatCard title="Productivity Score" value={displayProductivity} icon={<Activity />} trend="Average" isPositive={true} />
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              <StatCard 
+                title="Total Tasks" 
+                value={tasks.length} 
+                icon={<CheckSquare />} 
+                trend={`${tasks.filter(t => t.status === 'Completed').length} completed`} 
+                isPositive={true} 
+              />
+              <StatCard 
+                title="Completed Tasks" 
+                value={tasks.filter(t => t.status === 'Completed').length} 
+                icon={<Activity />} 
+                trend="Task Done" 
+                isPositive={true} 
+              />
+              <StatCard 
+                title="Pending Tasks" 
+                value={tasks.filter(t => t.status === 'Pending').length} 
+                icon={<Clock />} 
+                trend="Awaiting Action" 
+                isPositive={false} 
+              />
             </div>
 
+            {/* Main Visuals Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 glass-panel p-8 min-h-[400px] flex flex-col">
+              {/* Monthly Task Analytics Graph */}
+              <div className="lg:col-span-2 glass-panel p-8 min-h-[400px] flex flex-col justify-between">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-slate-800">Weekly Productivity Trend</h3>
-                  <select className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none font-medium text-slate-700 shadow-sm focus:border-primary">
-                    <option>This Week</option>
-                    <option>Last Week</option>
-                  </select>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">Monthly Task Analytics</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">Overall task creation and completion trend</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                    <span className="text-xs text-slate-600 font-bold mr-3">Total Tasks</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span className="text-xs text-slate-600 font-bold">Completed</span>
+                  </div>
                 </div>
-                <div className="flex-1 flex items-end justify-between gap-3 pt-10">
-                  {myAttendance.length > 0 ? (
-                    myAttendance.slice().reverse().map((log, i) => (
-                      <div key={i} className="flex flex-col items-center gap-2 w-full group">
-                        <div className="w-full bg-slate-100 rounded-t-xl relative flex items-end justify-center h-48 overflow-hidden">
-                           <div className="w-full bg-primary/80 group-hover:bg-primary transition-colors rounded-t-sm shadow-sm" style={{ height: `${log.productivity}%` }}></div>
+
+                <div className="flex-1 w-full min-h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={getMonthlyChartData()}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="month" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#ffffff', 
+                          border: '1px solid #e2e8f0', 
+                          borderRadius: '12px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="Total" 
+                        stroke="#4f46e5" 
+                        strokeWidth={3} 
+                        fillOpacity={1} 
+                        fill="url(#colorTotal)" 
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="Completed" 
+                        stroke="#10b981" 
+                        strokeWidth={3} 
+                        fillOpacity={1} 
+                        fill="url(#colorCompleted)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Recent Tasks List */}
+              <div className="glass-panel p-6 flex flex-col justify-between">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-slate-800">Recent Tasks</h3>
+                  <span className="text-xs bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-full">Latest</span>
+                </div>
+                <div className="space-y-4 flex-1 overflow-y-auto max-h-[320px]">
+                  {tasks.length > 0 ? (
+                    tasks.slice().reverse().slice(0, 4).map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-3.5 bg-white/60 rounded-xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200">
+                        <div className="flex flex-col min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{task.title}</p>
+                          <span className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                            <Calendar size={12} className="text-primary" /> {task.deadline}
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">{log.month} {log.day_num}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase border ${
+                          task.status === 'Completed' ? 'bg-green-50 text-green-600 border-green-200' :
+                          task.status === 'Pending' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                          'bg-blue-50 text-blue-600 border-blue-200'
+                        }`}>
+                          {task.status}
+                        </span>
                       </div>
                     ))
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-400 font-medium">No productivity records yet</div>
-                  )}
-                </div>
-              </div>
-              <div className="glass-panel p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-slate-800">Recent Alerts</h3>
-                </div>
-                <div className="space-y-4">
-                  {dynamicAlerts.map((notif, i) => (
-                    <div key={i} className="flex gap-3 items-start p-3 bg-white/60 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
-                      <div className={`w-2.5 h-2.5 mt-1.5 rounded-full shadow-sm ${notif.type === 'warn' ? 'bg-yellow-500' : notif.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{notif.text}</p>
-                        <span className="text-xs font-medium text-slate-500">{notif.time}</span>
-                      </div>
+                    <div className="h-full flex items-center justify-center text-slate-400 font-medium py-10">
+                      No recent tasks
                     </div>
-                  ))}
-                  <button className="w-full py-2.5 text-sm font-bold text-primary hover:bg-indigo-50 rounded-lg transition-colors mt-2 flex items-center justify-center gap-1 border border-transparent hover:border-indigo-100">
-                    View All <ChevronRight size={16} />
-                  </button>
+                  )}
                 </div>
               </div>
             </div>

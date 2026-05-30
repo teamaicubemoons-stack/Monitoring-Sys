@@ -18,10 +18,15 @@ const Login = () => {
     setIsLoading(true);
     setError('');
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const result = await login(email, password);
+      if (result && result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result?.message || 'Invalid email or password');
+        setIsLoading(false);
+      }
     } catch (err) {
-      setError('Invalid credentials');
+      setError('Network error. Please check your connection.');
       setIsLoading(false);
     }
   };
