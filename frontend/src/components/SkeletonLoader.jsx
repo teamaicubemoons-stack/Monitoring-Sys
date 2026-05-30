@@ -9,7 +9,7 @@ export const PageSkeleton = () => {
   return (
     <div className="min-h-screen bg-slate-50 overflow-hidden relative">
       {/* Sidebar Mock */}
-      <div className="w-64 bg-white/70 border-r border-slate-200/60 h-screen fixed left-0 top-0 flex flex-col p-6 z-50">
+      <div className="w-64 bg-white/70 border-r border-slate-200/60 h-screen fixed left-0 top-0 flex flex-col p-6 z-50 hidden lg:flex">
         <div className="flex items-center gap-3 mb-10">
           <Shimmer className="w-8 h-8 rounded-lg" />
           <Shimmer className="w-28 h-6" />
@@ -29,19 +29,23 @@ export const PageSkeleton = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="pl-64 p-10">
+      <div className="pl-0 lg:pl-64 p-4 sm:p-6 lg:p-10 transition-all duration-300">
         {/* Header Mock */}
-        <header className="flex justify-between items-center mb-10">
-          <div className="space-y-2">
-            <Shimmer className="w-48 h-8" />
-            <Shimmer className="w-32 h-4" />
+        <header className="flex justify-between items-center mb-6 lg:mb-10 gap-4">
+          <div className="flex items-center gap-3">
+            {/* Hamburger Mock */}
+            <Shimmer className="w-9 h-9 rounded-xl lg:hidden flex-shrink-0" />
+            <div className="space-y-2">
+              <Shimmer className="w-36 sm:w-48 h-7 sm:h-8" />
+              <Shimmer className="w-24 sm:w-32 h-3.5 sm:h-4" />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right space-y-1.5 hidden md:block">
               <Shimmer className="w-24 h-4 ml-auto" />
               <Shimmer className="w-16 h-3 ml-auto" />
             </div>
-            <Shimmer className="w-12 h-12 rounded-xl" />
+            <Shimmer className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex-shrink-0" />
           </div>
         </header>
 

@@ -41,7 +41,7 @@ const Login = () => {
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="glass-panel p-10 w-full max-w-md z-10"
+        className="glass-panel p-6 sm:p-10 w-[calc(100%-2rem)] sm:w-full max-w-md z-10 mx-4"
       >
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome Back</h1>

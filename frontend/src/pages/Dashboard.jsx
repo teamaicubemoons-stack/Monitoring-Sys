@@ -10,12 +10,12 @@ import {
   fetchAttendance as apiFetchAttendance,
   saveAttendance as apiSaveAttendance
 } from '../services/api';
-import { LayoutDashboard, CheckSquare, Users, Clock, Settings, LogOut, MoreVertical, Plus, Search, Calendar, Activity, ChevronRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Users, Clock, Settings, LogOut, MoreVertical, Plus, Search, Calendar, Activity, ChevronRight, Loader2, Eye, EyeOff, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TableSkeleton, TeamSkeleton, AttendanceSkeleton } from '../components/SkeletonLoader';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
   const { logout, user } = useContext(AuthContext);
   
   const navItems = [
@@ -30,17 +30,25 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   }
 
   return (
-    <div className="w-64 glass-panel border-l-0 border-t-0 border-b-0 rounded-none h-screen fixed left-0 top-0 flex flex-col p-6 z-50">
-      <div className="flex items-center gap-3 mb-10">
-        <div className="w-8 h-8 rounded-lg bg-primary shadow-lg shadow-primary/30 flex items-center justify-center font-bold text-lg text-white">M</div>
-        <h2 className="text-xl font-bold tracking-wide text-slate-800">MonitorSys</h2>
+    <div className={`w-64 glass-panel border-l-0 border-t-0 border-b-0 rounded-none h-screen fixed left-0 top-0 flex flex-col p-6 z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className="flex items-center justify-between gap-3 mb-10">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary shadow-lg shadow-primary/30 flex items-center justify-center font-bold text-lg text-white">M</div>
+          <h2 className="text-xl font-bold tracking-wide text-slate-800">MonitorSys</h2>
+        </div>
+        <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-slate-800 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
+          <X size={20} />
+        </button>
       </div>
       
       <nav className="flex-1 space-y-2">
         {navItems.map((item) => (
           <button 
             key={item.id} 
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => {
+              setActiveTab(item.id);
+              onClose();
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}>
             {item.icon}
             <span className="font-medium">{item.label}</span>
@@ -79,6 +87,7 @@ const StatCard = ({ title, value, icon, trend, isPositive }) => (
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [toast, setToast] = useState(null); // { message: '', type: 'success' | 'error' }
@@ -375,8 +384,8 @@ const Dashboard = () => {
             ) : tasks.length === 0 ? (
               <div className="text-center p-20 text-slate-500 font-medium">No tasks found. Create a new task to get started!</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
                     <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100">
                       <th className="p-4 font-semibold">Task Name</th>
@@ -488,15 +497,15 @@ const Dashboard = () => {
       case 'team':
         return (
           <div className="glass-panel overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/40">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-white/40">
               <h3 className="text-lg font-bold text-slate-800">Live Team Activity</h3>
-              <div className="flex items-center gap-4">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                <div className="relative w-full sm:w-auto">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input type="text" placeholder="Search members..." className="bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-700 shadow-sm" />
+                  <input type="text" placeholder="Search members..." className="w-full sm:w-auto bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-700 shadow-sm" />
                 </div>
                 {user?.role === 'admin' && (
-                  <button onClick={() => setShowAddEmployee(true)} className="px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium shadow-md">
+                  <button onClick={() => setShowAddEmployee(true)} className="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium shadow-md">
                     <Plus size={16} /> Add Employee
                   </button>
                 )}
@@ -506,8 +515,8 @@ const Dashboard = () => {
             {loadingTeam ? (
               <TableSkeleton />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse min-w-[650px]">
                   <thead>
                     <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100">
                       <th className="p-4 font-semibold">Employee</th>
@@ -698,8 +707,8 @@ const Dashboard = () => {
                     No attendance records found for this employee.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
                         <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100">
                           <th className="p-4 font-semibold">Date</th>
@@ -802,17 +811,21 @@ const Dashboard = () => {
             {/* Main Visuals Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Monthly Task Analytics Graph */}
-              <div className="lg:col-span-2 glass-panel p-8 min-h-[400px] flex flex-col justify-between">
-                <div className="flex justify-between items-center mb-6">
+              <div className="lg:col-span-2 glass-panel p-4 sm:p-8 min-h-[400px] flex flex-col justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Monthly Task Analytics</h3>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">Overall task creation and completion trend</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
-                    <span className="text-xs text-slate-600 font-bold mr-3">Total Tasks</span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                    <span className="text-xs text-slate-600 font-bold">Completed</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                      <span className="text-xs text-slate-600 font-bold">Total Tasks</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                      <span className="text-xs text-slate-600 font-bold">Completed</span>
+                    </div>
                   </div>
                 </div>
 
@@ -913,20 +926,47 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen pl-64 text-slate-800">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="p-10">
-        <header className="flex justify-between items-center mb-10">
-          <div>
-            <h1 className="text-3xl font-black mb-1 capitalize text-slate-800">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
-            <p className="text-slate-500 font-medium">Welcome back, {user?.full_name}</p>
+    <div className="min-h-screen pl-0 lg:pl-64 text-slate-800 transition-all duration-300 relative">
+      {/* Mobile Sidebar Backdrop */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+      <div className="p-4 sm:p-6 lg:p-10">
+        <header className="flex justify-between items-center mb-6 lg:mb-10 gap-4">
+          <div className="flex items-center gap-3">
+            {/* Hamburger Button */}
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden text-slate-600 hover:text-slate-800 p-2 rounded-xl bg-white border border-slate-200 shadow-sm transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black mb-0.5 sm:mb-1 capitalize text-slate-800">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">Welcome back, {user?.full_name}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
              <div className="text-right hidden md:block">
                 <p className="font-bold text-sm text-slate-800">{user?.full_name}</p>
                 <p className="text-xs text-slate-500 capitalize font-medium">{user?.role}</p>
              </div>
-            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden shadow-sm">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white border border-slate-200 overflow-hidden shadow-sm flex-shrink-0">
                <img src={`https://ui-avatars.com/api/?name=${user?.full_name}&background=random`} alt="Avatar" className="w-full h-full object-cover" />
             </div>
           </div>
@@ -943,8 +983,8 @@ const Dashboard = () => {
 
         {/* Add Employee Modal */}
         {showAddEmployee && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100]">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 mx-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-800">Add New Employee</h3>
                 <button onClick={() => setShowAddEmployee(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -998,8 +1038,8 @@ const Dashboard = () => {
 
         {/* Add Task Modal */}
         {showAddTask && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100]">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 mx-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-800">Create New Task</h3>
                 <button onClick={() => setShowAddTask(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -1060,7 +1100,7 @@ const Dashboard = () => {
               initial={{ opacity: 0, y: -20, x: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.9, transition: { duration: 0.2 } }}
-              className="fixed top-6 right-6 z-[150] max-w-sm w-full bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 flex items-center gap-3.5"
+              className="fixed top-6 right-6 left-6 sm:left-auto z-[150] max-w-sm sm:w-full bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 flex items-center gap-3.5"
             >
               <div className={`p-2.5 rounded-xl ${toast.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                 {toast.type === 'success' ? (
