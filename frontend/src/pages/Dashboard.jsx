@@ -410,11 +410,15 @@ const Dashboard = () => {
                                     Approve
                                   </button>
                                 </>
+                              ) : task.status === 'Completed' ? (
+                                <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-green-50 text-green-700 border-green-200">
+                                  Completed
+                                </span>
                               ) : (
                                 <select 
                                   value={task.status} 
                                   onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                                  className={`border rounded-lg px-3 py-1.5 text-sm font-medium outline-none cursor-pointer focus:border-primary focus:ring-2 focus:ring-primary/20 ${task.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}
+                                  className="border rounded-lg px-3 py-1.5 text-sm font-medium outline-none cursor-pointer focus:border-primary focus:ring-2 focus:ring-primary/20 bg-blue-50 text-blue-700 border-blue-200"
                                 >
                                   <option value="In Progress">In Progress</option>
                                   <option value="Completed">Completed</option>
@@ -427,11 +431,15 @@ const Dashboard = () => {
                               <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-yellow-50 text-yellow-700 border-yellow-200">
                                 Pending Approval
                               </span>
+                            ) : task.status === 'Completed' ? (
+                              <span className="text-xs px-2.5 py-1.5 rounded-lg font-medium border bg-green-50 text-green-700 border-green-200">
+                                Completed
+                              </span>
                             ) : (
                               <select 
                                 value={task.status} 
                                 onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                                className={`border rounded-lg px-3 py-1.5 text-sm font-medium outline-none cursor-pointer focus:border-primary focus:ring-2 focus:ring-primary/20 ${task.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}
+                                className="border rounded-lg px-3 py-1.5 text-sm font-medium outline-none cursor-pointer focus:border-primary focus:ring-2 focus:ring-primary/20 bg-blue-50 text-blue-700 border-blue-200"
                               >
                                 <option value="In Progress">In Progress</option>
                                 <option value="Completed">Completed</option>
