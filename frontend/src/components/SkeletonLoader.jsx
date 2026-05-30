@@ -7,8 +7,17 @@ const Shimmer = ({ className }) => (
 
 export const PageSkeleton = () => {
   return (
-    <div className="min-h-screen bg-slate-50 overflow-hidden relative">
-      {/* Sidebar Mock */}
+    <div className="min-h-screen bg-slate-50 overflow-hidden relative pb-20 lg:pb-0">
+      {/* Mobile Sticky Header Mock */}
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 border-b border-slate-100 flex items-center justify-between px-4 z-40 lg:hidden shadow-sm">
+        <div className="flex items-center gap-2">
+          <Shimmer className="w-6 h-6 rounded-md" />
+          <Shimmer className="w-24 h-5" />
+        </div>
+        <Shimmer className="w-9 h-9 rounded-xl" />
+      </header>
+
+      {/* Desktop/Tablet Left Sidebar Mock */}
       <div className="w-64 bg-white/70 border-r border-slate-200/60 h-screen fixed left-0 top-0 flex flex-col p-6 z-50 hidden lg:flex">
         <div className="flex items-center gap-3 mb-10">
           <Shimmer className="w-8 h-8 rounded-lg" />
@@ -28,26 +37,38 @@ export const PageSkeleton = () => {
         </div>
       </div>
 
+      {/* Sticky Bottom Navigation Bar Mock for Mobile */}
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white/90 border-t border-slate-100 flex justify-around items-center z-40 lg:hidden shadow-md px-4">
+        {[1, 2, 3].map((n) => (
+          <div key={n} className="flex flex-col items-center gap-1.5 flex-1">
+            <Shimmer className="w-5 h-5 rounded-md" />
+            <Shimmer className="w-10 h-2.5" />
+          </div>
+        ))}
+      </nav>
+
       {/* Main Content Area */}
-      <div className="pl-0 lg:pl-64 p-4 sm:p-6 lg:p-10 transition-all duration-300">
-        {/* Header Mock */}
-        <header className="flex justify-between items-center mb-6 lg:mb-10 gap-4">
-          <div className="flex items-center gap-3">
-            {/* Hamburger Mock */}
-            <Shimmer className="w-9 h-9 rounded-xl lg:hidden flex-shrink-0" />
+      <div className="pl-0 lg:pl-64 pt-16 lg:pt-0 transition-all duration-300">
+        <div className="p-4 sm:p-6 lg:p-10">
+          {/* Desktop/Tablet Header Mock */}
+          <header className="hidden lg:flex justify-between items-center mb-10 gap-4">
             <div className="space-y-2">
-              <Shimmer className="w-36 sm:w-48 h-7 sm:h-8" />
-              <Shimmer className="w-24 sm:w-32 h-3.5 sm:h-4" />
+              <Shimmer className="w-48 h-8" />
+              <Shimmer className="w-32 h-4" />
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right space-y-1.5 hidden md:block">
-              <Shimmer className="w-24 h-4 ml-auto" />
-              <Shimmer className="w-16 h-3 ml-auto" />
+            <div className="flex items-center gap-3">
+              <div className="text-right space-y-1.5 hidden md:block">
+                <Shimmer className="w-24 h-4 ml-auto" />
+                <Shimmer className="w-16 h-3 ml-auto" />
+              </div>
+              <Shimmer className="w-12 h-12 rounded-xl" />
             </div>
-            <Shimmer className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex-shrink-0" />
+          </header>
+
+          {/* Mobile Screen Page Title Mock */}
+          <div className="lg:hidden mb-6 mt-2">
+            <Shimmer className="w-36 h-7" />
           </div>
-        </header>
 
         {/* Dashboard Grid Mock */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
@@ -101,6 +122,7 @@ export const PageSkeleton = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
 
@@ -157,33 +179,3 @@ export const TeamSkeleton = () => {
   );
 };
 
-export const AttendanceSkeleton = () => {
-  return (
-    <div className="bg-white/70 border border-slate-200/60 rounded-3xl p-6 shadow-sm">
-      <div className="flex justify-between items-center mb-6">
-        <Shimmer className="w-40 h-7" />
-        <Shimmer className="w-48 h-10 rounded-lg" />
-      </div>
-      <div className="space-y-4">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <div key={n} className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl">
-            <div className="flex gap-4 items-center">
-              <Shimmer className="w-10 h-10 rounded-xl" />
-              <div className="space-y-2">
-                <Shimmer className="w-32 h-4" />
-                <Shimmer className="w-20 h-3" />
-              </div>
-            </div>
-            <div className="flex gap-6 items-center">
-              <div className="text-right space-y-2">
-                <Shimmer className="w-16 h-4 ml-auto" />
-                <Shimmer className="w-24 h-3 ml-auto" />
-              </div>
-              <Shimmer className="w-20 h-8 rounded-lg" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};

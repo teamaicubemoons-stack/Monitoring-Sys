@@ -10,7 +10,6 @@ const SPREADSHEET_ID = '1wvPoQEHS-7LTZ2RSoyB6HvPfY2KjwS56UT9MtWhcRp0'; // <-- Yo
 // Sheet names (must match exactly)
 const USERS_SHEET    = 'Users';
 const TASKS_SHEET    = 'Tasks';
-const ATTEND_SHEET   = 'Attendance';
 
 // ============================================================
 // MAIN ENTRY POINTS
@@ -26,9 +25,6 @@ function doPost(e) {
 
 function handleRequest(e) {
   try {
-    // Init Attendance sheet if missing
-    ensureAttendanceSheet();
-
     const params   = e.parameter || {};
     const action   = params.action || '';
     const method   = params.method || 'GET'; // GET or POST override via param
@@ -68,14 +64,6 @@ function handleRequest(e) {
         break;
       case 'updateTaskStatus':
         result = updateTaskStatus(body.taskId, body.status);
-        break;
-
-      // ATTENDANCE
-      case 'getAttendance':
-        result = getAttendance(params.userId);
-        break;
-      case 'saveAttendance':
-        result = saveAttendance(body);
         break;
 
       default:
@@ -128,19 +116,6 @@ function getSheet(name) {
   return sheet;
 }
 
-// ============================================================
-// HELPER: Ensure Attendance sheet exists with headers
-// ============================================================
-function ensureAttendanceSheet() {
-  const ss = getActiveSS();
-  let sheet = ss.getSheetByName(ATTEND_SHEET);
-  if (!sheet) {
-    sheet = ss.insertSheet(ATTEND_SHEET);
-    sheet.appendRow(['id', 'user_id', 'date', 'status', 'check_in', 'check_out', 'notes']);
-    sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#4f46e5').setFontColor('#ffffff');
-  }
-  return sheet;
-}
 
 // ============================================================
 // AUTH: Login
@@ -373,94 +348,6 @@ function updateTaskStatus(taskId, newStatus) {
   return { error: 'Task not found' };
 }
 
-// ============================================================
-// ATTENDANCE: Get attendance records for a user
-// ============================================================
-function getAttendance(userId) {
-  if (!userId) return [];
-
-  const sheet = getSheet(ATTEND_SHEET);
-  const data  = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  const headers = data[0];
-  const idIdx      = headers.indexOf('id');
-  const userIdIdx  = headers.indexOf('user_id');
-  const dateIdx    = headers.indexOf('date');
-  const statusIdx  = headers.indexOf('status');
-  const checkInIdx = headers.indexOf('check_in');
-  const checkOutIdx= headers.indexOf('check_out');
-  const notesIdx   = headers.indexOf('notes');
-
-  const records = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (!row[userIdIdx]) continue;
-    if (row[userIdIdx].toString() !== userId.toString()) continue;
-
-    records.push({
-      id:        row[idIdx].toString(),
-      user_id:   row[userIdIdx].toString(),
-      date:      formatDate(row[dateIdx]),
-      status:    row[statusIdx].toString(),
-      check_in:  row[checkInIdx] ? row[checkInIdx].toString() : '',
-      check_out: row[checkOutIdx] ? row[checkOutIdx].toString() : '',
-      notes:     row[notesIdx] ? row[notesIdx].toString() : ''
-    });
-  }
-
-  // Sort descending by date
-  records.sort((a, b) => new Date(b.date) - new Date(a.date));
-  return records;
-}
-
-// ============================================================
-// ATTENDANCE: Save / Update attendance record
-// ============================================================
-function saveAttendance(body) {
-  const { user_id, date, status, check_in, check_out, notes } = body;
-  if (!user_id || !date || !status) return { error: 'user_id, date, and status required' };
-
-  const sheet = getSheet(ATTEND_SHEET);
-  const data  = sheet.getDataRange().getValues();
-  const headers = data[0];
-
-  const idIdx      = headers.indexOf('id');
-  const userIdIdx  = headers.indexOf('user_id');
-  const dateIdx    = headers.indexOf('date');
-  const statusIdx  = headers.indexOf('status');
-  const checkInIdx = headers.indexOf('check_in');
-  const checkOutIdx= headers.indexOf('check_out');
-  const notesIdx   = headers.indexOf('notes');
-
-  // Check if record exists for same user + date -> UPDATE
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[userIdIdx].toString() === user_id.toString() &&
-        formatDate(row[dateIdx]) === date) {
-      // Update existing row
-      sheet.getRange(i + 1, statusIdx + 1).setValue(status);
-      sheet.getRange(i + 1, checkInIdx + 1).setValue(check_in || '');
-      sheet.getRange(i + 1, checkOutIdx + 1).setValue(check_out || '');
-      sheet.getRange(i + 1, notesIdx + 1).setValue(notes || '');
-      return { success: true, updated: true };
-    }
-  }
-
-  // New record
-  const newId = 'ATT' + Date.now();
-  const row = new Array(headers.length).fill('');
-  row[idIdx]      = newId;
-  row[userIdIdx]  = user_id;
-  row[dateIdx]    = date;
-  row[statusIdx]  = status;
-  row[checkInIdx] = check_in || '';
-  row[checkOutIdx]= check_out || '';
-  row[notesIdx]   = notes || '';
-
-  sheet.appendRow(row);
-  return { success: true, id: newId };
-}
 
 // ============================================================
 // UTILITY: Format date to YYYY-MM-DD string

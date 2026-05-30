@@ -66,9 +66,4 @@ export const addTask = (body) => appsPost('addTask', body);
 export const updateTaskStatus = (taskId, status) =>
   appsPost('updateTaskStatus', { taskId, status });
 
-// ---- ATTENDANCE ----
-export const fetchAttendance = (userId) =>
-  appsGet('getAttendance', { userId });
 
-export const saveAttendance = (body) =>
-  appsPost('saveAttendance', body);
